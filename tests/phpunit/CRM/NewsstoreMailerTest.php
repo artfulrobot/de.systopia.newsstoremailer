@@ -19,6 +19,7 @@ class NewsstoreMailerTest extends \PHPUnit_Framework_TestCase implements Headles
     // Civi\Test has many helpers, like install(), uninstall(), sql(), and sqlFile().
     // See: https://github.com/civicrm/org.civicrm.testapalooza/blob/master/civi-test.md
     return \Civi\Test::headless()
+      ->install('de.systopia.newsstore')
       ->installMe(__DIR__)
       ->apply();
   }
@@ -35,18 +36,15 @@ class NewsstoreMailerTest extends \PHPUnit_Framework_TestCase implements Headles
    * Test no mailing is created if no items to send.
    */
   public function testNothingSentIfNoItems() {
-    $a = new CRM_NewsstoreMailer([
-      'body_tpl' => '',
-      'item_tpl' => '',
-    ]);
+    $a = new CRM_NewsstoreMailer();
     $result = $a->createMailing([], 1);
     $this->assertEquals(null, $result);
   }
+  /**
+   *
+   */
   public function testTemplateWorks() {
-    $a = new CRM_NewsstoreMailer([
-      'body_tpl' => "<p>header</p>%ITEMS%<p>footer</p>",
-      'item_tpl' => "<p class='item' >item: %ITEM_TITLE%\ndetail: %ITEM_TEASER%\n<a href='%ITEM_LINK%' >Read More</a></p>",
-    ]);
+    $a = CRM_NewsstoreMailer::factory();
     $result = $a->getMailingHtml(
       [
         [
@@ -58,7 +56,7 @@ class NewsstoreMailerTest extends \PHPUnit_Framework_TestCase implements Headles
           'object'      => '',
         ],
       ]);
-    $this->assertEquals("<p>header</p><p class='item' >item: Test item 1\ndetail: Teaser text 1\n<a href='https://example.com/1' >Read More</a></p><p>footer</p>", $result);
+    $this->assertEquals("<p>Dear {contact.first_name},</p><p>Here's 1 articles:</p><article><h2>Test item 1</h2>Teaser text 1</article><p>You can <a href='{action.unsubscribeUrl}'>unsubscribe</a>.</p><p>{domain.address}</p>", $result);
   }
   /**
    * Test mailing is created.
@@ -68,10 +66,8 @@ class NewsstoreMailerTest extends \PHPUnit_Framework_TestCase implements Headles
     // Need a mailing group.
     $group_id = $this->createTestMailingGroup();
 
-    $a = new CRM_NewsstoreMailer([
-      'body_tpl' => '',
-      'item_tpl' => '',
-    ]);
+    $a = CRM_NewsstoreMailer::factory('CRM_NewsstoreMailer', []);
+    $a->store = ['name' => 'Mock source'];
     $mailing_id = $a->createMailing([
       [
         'id'          => 1,

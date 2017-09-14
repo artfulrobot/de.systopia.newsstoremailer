@@ -37,13 +37,12 @@ function civicrm_api3_news_store_source_NewsstoreMailer($params) {
   // accept templates here and feed them in, if that functionality is required
   // in future.
   try {
-    $api = new CRM_NewsstoreMailer();
-    $test_mode = isset($params['test_mode']) && ((bool) $params['test_mode']);
-    $result = $api->process($params['news_source_id'], $params['mailing_group_id'], $test_mode);
+    $formatter = isset($params['formatter']) ? $params['formatter'] : 'CRM_NewsstoreMailer';
+    $result = CRM_NewsstoreMailer::factory($formatter, $params)->process();
     return civicrm_api3_create_success(['items_sent' => $result], $params, 'NewsStoreSource', 'NewsstoreMailer');
   }
   catch (\Exception $e) {
-    // Reserve as API exception. (not sure if/why this is important!)
+    // Rethrow as API exception. (not sure if/why this is important!)
     throw new API_Exception($e->getMessage(), $e->getCode());
   }
 }

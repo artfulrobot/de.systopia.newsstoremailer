@@ -1,105 +1,124 @@
 <?php
 /**
- * GIGA specific use of NewsStore.
+ * This is the parent class of all mailing formatters.
+ *
+ * Formatters should implement getMailingHtml() and getMailingSubject() and
+ * configure() if they need to take input params.
  */
 class CRM_NewsstoreMailer
 {
-  /**
-   * Subject line for emails. @todo
-   */
-  const SUBJECT_LINE='Latest GIGA News';
-  /**
-   * List of tags we allow to pass from RSS items direct to mailings.
-   */
-  const PERMITTED_HTML_TAGS= '<br><p><h1><h2><h3><h4><h5><h6><ul><ol><li><dd><dt><dl><hr><embed><object><a><div><table><thead><tbody><tr><th><td><strong><em><b><i><img>';
-  /**
-   * Body template.
-   */
-  public $body_tpl;
-  /**
-   * Item template.
-   */
-  public $item_tpl;
+  /** array output of a NewsStoreSource getsingle call. */
+  public $source;
+  /** array output of a Group getsingle call. */
+  public $mailing_group;
+  /** bool 'test_mode' If TRUE, do not send the mailing and do not mark items consumed. */
+  public $test_mode = FALSE;
+  /** string Friendly from name. */
+  public $from_name;
+  /** string From email. */
+  public $from_email;
 
   /**
+   * Factory method.
    *
+   * @param string $mailer_class must inherit from this class (CRM_NewsstoreMailer)
+   * @return CRM_NewsstoreMailer
+   */
+  public static function factory($mailer_class='CRM_NewsstoreMailer', $params=[]) {
+
+    if ($mailer_class != __CLASS__) {
+      if (!class_exists($mailer_class, $autoload=TRUE)) {
+        throw new \Exception("'$mailer_class' is not defined.");
+      }
+      $reflection = new \ReflectionClass($mailer_class);
+      if (! $reflection->isSubclassOf('CRM_NewsstoreMailer')) {
+        throw new \Exception("'$mailer_class' is not valid.");
+      }
+    }
+    $obj = new $mailer_class($params);
+    return $obj;
+  }
+  /**
    * Constructor.
    *
-   * $params array can contain these keys:
-   * - body_tpl_file
-   * - body_tpl
-   * - item_tpl_file
-   * - item_tpl
-   *
    * @param array $params
+   * In the constructor we care about the following keys, but implementing
+   * classes should override configure() for anything they need to do extra.
+   *
+   * - int 'news_source_id'
+   * - int 'mailing_group_id'
+   * - bool 'test_mode' If TRUE, do not send the mailing and do not mark items consumed.
+   *
    */
   public function __construct($params = []) {
 
-    // Up two levels from this file.
-    $extension_dir = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR;
-
-    // Load the body template.
-    if (isset($params['body_tpl'])) {
-      $this->body_tpl = $params['body_tpl'];
-    }
-    else {
-      // Load template from a file.
-      $filename = isset($params['body_tpl_file'])
-        ? $params['body_tpl_file']
-        : ($extension_dir  . 'auto-mail-body-template.html');
-      $this->body_tpl = file_get_contents($filename);
+    if (isset($params['news_source_id'])) {
+      $this->source = civicrm_api3('NewsStoreSource', 'getsingle', $params['news_source_id']);
     }
 
-    // Load the item template.
-    if (isset($params['item_tpl'])) {
-      $this->item_tpl = $params['item_tpl'];
+    if (isset($params['mailing_group_id'])) {
+      $this->mailing_group = civicrm_api3('Group', 'getsingle', [
+        'id'         => $params['mailing_group_id'],
+        'group_type' => "Mailing List",
+        'is_active'  => 1,
+        ]);
     }
-    else {
-      // Load template from a file.
-      $filename = isset($params['item_tpl_file'])
-        ? $params['item_tpl_file']
-        : ($extension_dir  . 'auto-mail-item-template.html');
-      $this->item_tpl = file_get_contents($filename);
+
+    $this->test_mode = (!empty($params['test_mode']));
+
+    // Attempt to set From to the site's default.
+    $from = civicrm_api3('OptionValue', 'get', [
+      'sequential'      => 1,
+      'return'          => ["label", 'is_default'],
+      'is_default'      => 1,
+      'option_group_id' => "from_email_address",
+    ]);
+    if ($from['count']
+      && preg_match('/^"([^"]+)"\s+<([^>]+)>$/', $from['values'][0]['label'], $from_email)) {
+
+      $this->from_name  = $from_email[1];
+      $this->from_email = $from_email[2];
     }
+
+    $this->configure($params);
   }
+  /**
+   * Configure from input params according to this formatter's requirements.
+   *
+   * @param array $params
+   * @return CRM_NewsstoreMailer $this
+   */
+  public function configure($params=[]) {
+  }
+
   /**
    * Send items out.
    *
-   * @param int $news_source_id
-   * @param int $mailing_group_id
-   * @param bool $test_mode If TRUE, do not send the mailing and do not mark items consumed.
    * @return int number of items included in the mailing sent.
    */
-  public function process($news_source_id, $mailing_group_id, $test_mode = FALSE) {
+  public function process() {
 
     // Fetch data.
-    $group = civicrm_api3('Group', 'getsingle', [
-      'id'         => $mailing_group_id,
-      'group_type' => "Mailing List",
-      'is_active'  => 1,
-      ]);
     $items = civicrm_api3('NewsStoreItem', 'getwithusage', array(
-      'source'      => $news_source_id,
+      'source'      => $this->source['id'],
       'is_consumed' => 0, // Only unconsumed items.
     ));
 
     // Create mailing.
-    $mailing_id = $this->createMailing($items['values'], $group);
-
-    if (!$test_mode) {
-      // NOT test mode.
-
-      if ($mailing_id) {
+    $mailing_id = $this->createMailing($items['values']);
+    if ($mailing_id) {
+      if (!$this->test_mode) {
+        // NOT test mode.
         $this->sendMailing($mailing_id);
-      }
 
-      if ($items['values']) {
-        // Mark each of these items consumed.
-        foreach ($items['values'] as $item) {
-          $result = civicrm_api3('NewsStoreConsumed', 'create', [
-            'id'          => $item['newsstoreconsumed_id'],
-            'is_consumed' => 1,
-          ]);
+        if ($items['values']) {
+          // Mark each of these items consumed.
+          foreach ($items['values'] as $item) {
+            $result = civicrm_api3('NewsStoreConsumed', 'create', [
+              'id'          => $item['newsstoreconsumed_id'],
+              'is_consumed' => 1,
+            ]);
+          }
         }
       }
     }
@@ -111,32 +130,25 @@ class CRM_NewsstoreMailer
    *
    * @return null|int ID of mailing created, if one was.
    */
-  public function createMailing($items, $mailing_group) {
+  public function createMailing($items) {
     if (empty($items)) {
       // Nothing to do, don't do anything!
       return;
     }
 
-    // Got items. Create a mailing.
-    $from = civicrm_api3('OptionValue', 'get', [
-      'sequential' => 1,
-      'return' => array("label", 'is_default'),
-      'is_default' => 1,
-      'option_group_id' => "from_email_address",
-    ]);
-    if (
-      ($from['count'] == 0)
-      || (!preg_match('/^"([^"]+)"\s+<([^>]+)>$/', $from['values'][0]['label'], $from_email))) {
-      throw new \Exception("Cannot parse default email address, ensure it is in the format: \"name\" <email@example.com>");
+    if (empty($this->from_email)) {
+      throw new \Exception("Missing FROM email address.");
     }
+
+    // Got items. Create a mailing.
     $params = [
       'sequential' => 1,
-      'name'       => ts(count($items)>1 ? count($items) . " items: " : '1 item: ') . $mailing_group['title'] . ' ' . date('j M Y'),
-      'from_name'  => $from_email[1],
-      'from_email' => $from_email[2],
-      'subject'    => static::SUBJECT_LINE,
+      'name'       => ts(count($items)>1 ? count($items) . " items: " : '1 item: ') . $this->mailing_group['title'] . ' ' . date('j M Y'),
+      'from_name'  => $this->from_name,
+      'from_email' => $this->from_email,
+      'subject'    => $this->getMailingSubject($items),
       'body_html'  => $this->getMailingHtml($items),
-      'groups'     => ['include' => [$mailing_group['id']]],
+      'groups'     => ['include' => [$this->mailing_group['id']]],
       'header_id'  => '',
       'footer_id'  => '',
     ];
@@ -162,26 +174,27 @@ class CRM_NewsstoreMailer
 
   /**
    * Template the email.
+   *
+   * This is a minimal sample implementation.
    */
   public function getMailingHtml($items) {
 
-    $html_items = '';
+    $html = "<p>Dear {contact.first_name},</p><p>Here's " . count($items) . " articles:</p>";
     foreach ($items as $item) {
       $obj = unserialize($item['object']);
-      $html_items .= strtr($this->item_tpl, [
-        '%ITEM_TITLE%'           => htmlspecialchars($item['title']),
-        '%ITEM_DESCRIPTION%'     => strip_tags($obj['item/description'], static::PERMITTED_HTML_TAGS),
-        '%ITEM_TEASER%'          => htmlspecialchars($item['teaser']),
-        '%ITEM_LINK%'            => $item['uri'],
-        '%ITEM_IMAGE_SRC%'       => $obj['item/enclosure@url'],
-        '%ITEM_SOURCE%'          => $obj['item/source'],
-        '%ITEM_DC:CREATOR%'      => $obj['item/dc:creator'],
-        '%ITEM_CONTENT_ENCODED%' => strip_tags($obj['item/content:encoded'], static::PERMITTED_HTML_TAGS),
-      ]);
+      $html .= "<article><h2>" . htmlspecialchars(strip_tags($item['title'])) . "</h2>"
+        . htmlspecialchars($item['teaser']) . "</article>";
     }
+    $html .= "<p>You can <a href='{action.unsubscribeUrl}'>unsubscribe</a>.</p><p>{domain.address}</p>";
 
-    $body_html = str_replace('%ITEMS%', $html_items, $this->body_tpl);
-
-    return $body_html;
+    return $html;
+  }
+  /**
+   * Template the email.
+   *
+   * This is a minimal sample implementation.
+   */
+  public function getMailingSubject($items) {
+    return count($items) . " articles from " . $this->source['name'];
   }
 }
