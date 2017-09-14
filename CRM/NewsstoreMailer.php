@@ -53,7 +53,7 @@ class CRM_NewsstoreMailer
   public function __construct($params = []) {
 
     if (isset($params['news_source_id'])) {
-      $this->source = civicrm_api3('NewsStoreSource', 'getsingle', $params['news_source_id']);
+      $this->source = civicrm_api3('NewsStoreSource', 'getsingle', ['id' => $params['news_source_id']]);
     }
 
     if (isset($params['mailing_group_id'])) {
