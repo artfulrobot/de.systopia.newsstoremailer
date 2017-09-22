@@ -10,7 +10,7 @@
  */
 function _civicrm_api3_news_store_source_NewsstoreMailer_spec(&$spec) {
   // Get a list of Mailing Groups.
-  $result = civicrm_api3('Group', 'get', [ 'return' => ["title"], 'group_type' => "Mailing List" ]);
+  $result = civicrm_api3('Group', 'get', [ 'return' => ["title"], 'group_type' => "Mailing List", 'options' => ['limit' => 0] ]);
   $opts = [];
   foreach ($result['values'] as $id=>$_) {
     $opts[$id] = $_['title'];
@@ -22,7 +22,7 @@ function _civicrm_api3_news_store_source_NewsstoreMailer_spec(&$spec) {
   ];
 
   // Get a list of NewsStoreSources.
-  $result = civicrm_api3('NewsStoreSource', 'get', []);
+  $result = civicrm_api3('NewsStoreSource', 'get', ['options' => ['limit' => 0]]);
   $opts = [];
   foreach ($result['values'] as $_) {
     $opts[$_['id']] = $_['name'];
