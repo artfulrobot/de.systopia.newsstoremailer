@@ -17,6 +17,9 @@ function _civicrm_api3_news_store_source_NewsstoreMailer_spec(&$spec) {
     'description' => 'NewsSourceStore ID',
     'api.required' => 1,
   ];
+  $spec['formatter'] = [
+    'description' => 'Custom Formatter class (default is CRM_NewsstoreMailer)',
+  ];
   $spec['test_mode'] = [
     'description' => 'Boolean. If set, mailing will be created but not sent and items will not be marked as consumed.',
   ];
