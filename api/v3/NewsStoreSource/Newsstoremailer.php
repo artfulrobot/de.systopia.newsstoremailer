@@ -9,12 +9,27 @@
  * @see http://wiki.civicrm.org/confluence/display/CRMDOC/API+Architecture+Standards
  */
 function _civicrm_api3_news_store_source_NewsstoreMailer_spec(&$spec) {
+  // Get a list of Mailing Groups.
+  $result = civicrm_api3('Group', 'get', [ 'return' => ["title"], 'group_type' => "Mailing List" ]);
+  $opts = [];
+  foreach ($result['values'] as $id=>$_) {
+    $opts[$id] = $_['title'];
+  }
   $spec['mailing_group_id'] = [
     'description' => 'ID of Mailing Group to send to',
     'api.required' => 1,
+    'options' => $opts,
   ];
+
+  // Get a list of NewsStoreSources.
+  $result = civicrm_api3('NewsStoreSource', 'get', []);
+  $opts = [];
+  foreach ($result['values'] as $id=>$_) {
+    $opts[$id] = $_['name'];
+  }
   $spec['news_source_id'] = [
     'description' => 'NewsSourceStore ID',
+    'options' => $opts,
     'api.required' => 1,
   ];
   $spec['formatter'] = [
