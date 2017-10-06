@@ -183,7 +183,9 @@ class CRM_NewsstoreMailer
     foreach ($items as $item) {
       $obj = unserialize($item['object']);
       $html .= "<article><h2>" . htmlspecialchars(strip_tags($item['title'])) . "</h2>"
-        . htmlspecialchars($item['teaser']) . "</article>";
+        . htmlspecialchars($item['teaser'])
+        . "<a href=" . $item['uri'] . ">Read Full Story</a>"
+        . "</article>";
     }
     $html .= "<p>You can <a href='{action.unsubscribeUrl}'>unsubscribe</a>.</p><p>{domain.address}</p>";
 
