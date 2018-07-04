@@ -4,6 +4,9 @@
  *
  * Formatters should implement getMailingHtml() and getMailingSubject() and
  * configure() if they need to take input params.
+ *
+ * Formatters can also implement alterCreateMailingParams() to tweak the
+ * mailing, e.g. to set template_type to 'mosaico' or such.
  */
 class CRM_NewsstoreMailer
 {
@@ -152,10 +155,19 @@ class CRM_NewsstoreMailer
       'header_id'  => '',
       'footer_id'  => '',
     ];
+    $this->alterCreateMailingParams($params);
     // file_put_contents("/tmp/automail.html", $params['body_html']);
     $mailing_result = civicrm_api3('Mailing', 'create', $params);
 
     return $mailing_result['id'];
+  }
+  /**
+   * Opportunity to edit the parameters of the mailing.
+   *
+   * @param Array $params API params used with Mailing.Create
+   */
+  public function alterCreateMailingParams(&$params) {
+
   }
   /**
    * Schedule the mailing to be sent immediately.
