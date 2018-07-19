@@ -8,7 +8,7 @@
  * Formatters can also implement alterCreateMailingParams() to tweak the
  * mailing, e.g. to set template_type to 'mosaico' or such.
  */
-class CRM_NewsstoreMailer
+class CRM_NewsstoreMailer implements CRM_NewsstoreMailer_Formatter
 {
   /** array output of a NewsStoreSource getsingle call. */
   public $source;
