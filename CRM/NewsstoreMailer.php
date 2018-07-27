@@ -22,6 +22,10 @@ class CRM_NewsstoreMailer implements CRM_NewsstoreMailer_Formatter
   public $from_email;
 
   /**
+   * Contact Id to record as having created this mailing.
+   */
+  public $created_id;
+  /**
    * Factory method.
    *
    * @param string $mailer_class must inherit from this class (CRM_NewsstoreMailer)
@@ -70,17 +74,33 @@ class CRM_NewsstoreMailer implements CRM_NewsstoreMailer_Formatter
     $this->test_mode = (!empty($params['test_mode']));
 
     // Attempt to set From to the site's default.
-    $from = civicrm_api3('OptionValue', 'get', [
-      'sequential'      => 1,
-      'return'          => ["label", 'is_default'],
-      'is_default'      => 1,
-      'option_group_id' => "from_email_address",
-    ]);
-    if ($from['count']
-      && preg_match('/^"([^"]+)"\s+<([^>]+)>$/', $from['values'][0]['label'], $from_email)) {
+    $result = NULL;
+    if (!empty($params['from_address'])) {
+      $result = civicrm_api3('OptionValue', 'get', [
+        'sequential' => 1,
+        'return'          => ["label"],
+        'option_group_id' => "from_email_address",
+        'value'           => (int) $params['from_address'],
+      ]);
+    }
+    if (empty($result) || $result['count'] != 1) {
+      // Not found. Look up the default.
+      $result = civicrm_api3('OptionValue', 'get', [
+        'sequential'      => 1,
+        'return'          => ["label", 'is_default'],
+        'is_default'      => 1,
+        'option_group_id' => "from_email_address",
+      ]);
+    }
+    if (!empty($result['values'][0]['label'])
+      && preg_match('/^"([^"]+)"\s+<([^>]+)>$/', $result['values'][0]['label'], $from_email)) {
 
       $this->from_name  = $from_email[1];
       $this->from_email = $from_email[2];
+    }
+
+    if (!empty($params['created_id'])) {
+      $this->created_id = (int) $params['created_id'];
     }
 
     $this->configure($params);
@@ -155,6 +175,9 @@ class CRM_NewsstoreMailer implements CRM_NewsstoreMailer_Formatter
       'header_id'  => '',
       'footer_id'  => '',
     ];
+    if ($this->created_id) {
+      $params['created_id'] = $this->created_id;
+    }
     $this->alterCreateMailingParams($params);
     // file_put_contents("/tmp/automail.html", $params['body_html']);
     $mailing_result = civicrm_api3('Mailing', 'create', $params);

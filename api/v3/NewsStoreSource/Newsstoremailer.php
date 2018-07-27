@@ -32,11 +32,34 @@ function _civicrm_api3_news_store_source_NewsstoreMailer_spec(&$spec) {
     'options' => $opts,
     'api.required' => 1,
   ];
+
+  // Get a list of From addresses
+  $result = civicrm_api3('OptionValue', 'get', ['option_group_id' => "from_email_address", 'options' => ['limit' => 0]]);
+  $opts = [];
+  foreach ($result['values'] as $_) {
+    $opts[$_['value']] = $_['label'];
+  }
+  $spec['from_address'] = [
+    'description' => 'From Address (must be registered)',
+    'options' => $opts,
+  ];
+
+  $formatters = ['CRM_NewsstoreMailer' => ts('Default example formatter')];
+  CRM_Utils_Hook::singleton()->invoke(1, $formatters,
+    $dummy, $dummy, $dummy, $dummy, $dummy,
+    'newsstoremailer_formatters');
+
   $spec['formatter'] = [
     'description' => 'Custom Formatter class (default is CRM_NewsstoreMailer)',
+    'options' => $formatters,
   ];
+
   $spec['test_mode'] = [
     'description' => 'Boolean. If set, mailing will be created but not sent and items will not be marked as consumed.',
+  ];
+
+  $spec['created_id'] = [
+    'description' => 'Contact ID to record as the creator of this mailing. Must be set for scheduled task calling by cronjob.',
   ];
 }
 
