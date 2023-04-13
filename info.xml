@@ -23,5 +23,10 @@
   <comments/>
   <civix>
     <namespace>CRM/Newsstoremailer</namespace>
+    <format>23.02.1</format>
   </civix>
+  <classloader>
+    <psr0 prefix="CRM_" path="."/>
+    <psr4 prefix="Civi\" path="Civi"/>
+  </classloader>
 </extension>

@@ -9,7 +9,7 @@ use Civi\Test\TransactionalInterface;
  *
  * @group headless
  */
-class NewsstoreMailerTest extends \PHPUnit_Framework_TestCase implements HeadlessInterface, HookInterface, TransactionalInterface
+class NewsstoreMailerTest extends \PHPUnit\Framework\TestCase implements HeadlessInterface, HookInterface, TransactionalInterface
 {
   /**
    * List of stuff to delete after a test.
