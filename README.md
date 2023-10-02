@@ -1,5 +1,8 @@
 # NewsStore Mailer
 
+**Warning: this extension is unmaintained, with reports that it is broken in CivCRM 5.64.3 - possibly earlier versions 🤷- Please see https://github.com/artfulrobot/de.systopia.newsstoremailer/issues/2**
+
+
 This extension provides an API method which takes 'unconsumed' items from a
 given NewsStoreSource, formats them into an email, and sends that email to a
 given mailing list.
